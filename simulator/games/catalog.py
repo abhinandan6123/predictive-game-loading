@@ -1,6 +1,5 @@
 from simulator.games.models import GameResource
 
-
 GAME_CATALOG: dict[str, GameResource] = {
     "game_01": GameResource(
         game_id="game_01",

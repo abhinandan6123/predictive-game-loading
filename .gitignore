@@ -52,3 +52,7 @@ htmlcov/
 
 # Docker
 docker-compose.override.yml
+
+# Reproducible benchmark artifacts
+!simulator/results/
+!simulator/results/*.csv
