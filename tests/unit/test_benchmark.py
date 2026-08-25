@@ -1,6 +1,8 @@
 import csv
 
 import simulator.benchmark as benchmark
+from simulator.games.catalog import GAME_CATALOG
+from simulator.network.profiles import NETWORK_PROFILES
 
 
 def test_benchmark_generates_expected_rows(tmp_path) -> None:
@@ -17,7 +19,9 @@ def test_benchmark_generates_expected_rows(tmp_path) -> None:
         ) as file:
             rows = list(csv.DictReader(file))
 
-        assert len(rows) == 15
+        expected_rows = len(GAME_CATALOG) * len(NETWORK_PROFILES)
+
+        assert len(rows) == expected_rows
         assert {
             "game_id",
             "network",
