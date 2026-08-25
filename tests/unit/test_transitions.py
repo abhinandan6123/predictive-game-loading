@@ -77,3 +77,4 @@ def test_transition_counts() -> None:
     counts = transition_counts(transitions)
 
     assert counts[("game_a", "game_b")] == 2
+    
