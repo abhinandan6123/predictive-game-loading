@@ -1,7 +1,4 @@
-"""Contextual feature extraction module.
-
-Extracts session position, switch frequency, and lag transitions.
-"""
+"""Contextual feature extraction module."""
 
 from __future__ import annotations
 

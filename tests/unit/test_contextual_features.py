@@ -1,6 +1,7 @@
 """
 Unit tests for contextual feature extraction pipeline.
 """
+
 from ml.features.contextual import extract_contextual_features
 from simulator.sessions.events import SessionEvent
 from simulator.sessions.session import Session

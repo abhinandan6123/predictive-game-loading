@@ -1,28 +1,26 @@
-from ml.features.transitions import TransitionExample
-from ml.prediction.transition_predictor import TransitionPredictor
+from ml.features.transitions import extract_transitions, transition_counts
+from simulator.sessions.generator import Session
 
 
-def test_transition_predictor_fit_and_predict() -> None:
-    train_data = [
-        TransitionExample(prev_game="game_a", next_game="game_b"),
-        TransitionExample(prev_game="game_a", next_game="game_b"),
-        TransitionExample(prev_game="game_a", next_game="game_c"),
+def test_extract_transitions() -> None:
+    sessions = [
+        Session(session_id="s1", games=["game_a", "game_b", "game_c"]),
     ]
-    model = TransitionPredictor()
-    model.fit(train_data)
+    transitions = extract_transitions(sessions)
 
-    predictions = model.predict(current_game="game_a", top_k=2)
-    assert len(predictions) == 2
-    assert predictions[0] == "game_b"
-    assert predictions[1] == "game_c"
+    assert len(transitions) == 2
+    assert transitions[0].prev_game == "game_a"
+    assert transitions[0].next_game == "game_b"
+    assert transitions[1].prev_game == "game_b"
+    assert transitions[1].next_game == "game_c"
 
 
-def test_transition_predictor_unseen_game() -> None:
-    train_data = [
-        TransitionExample(prev_game="game_a", next_game="game_b"),
+def test_transition_counts() -> None:
+    sessions = [
+        Session(session_id="s1", games=["game_a", "game_b"]),
+        Session(session_id="s2", games=["game_a", "game_b"]),
     ]
-    model = TransitionPredictor()
-    model.fit(train_data)
+    transitions = extract_transitions(sessions)
+    counts = transition_counts(transitions)
 
-    predictions = model.predict(current_game="game_unknown", top_k=2)
-    assert isinstance(predictions, list)
+    assert counts[("game_a", "game_b")] == 2

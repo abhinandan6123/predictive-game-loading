@@ -1,7 +1,4 @@
-"""Multi-seed evaluation pipeline for transition predictions.
-
-Runs repeated experiments across multiple seeds and computes mean +/- std dev.
-"""
+"""Multi-seed evaluation pipeline for transition predictions."""
 
 from __future__ import annotations
 
@@ -39,33 +36,21 @@ def evaluate_across_seeds(
         trans_model = TransitionPredictor()
         trans_model.fit(train_data)
 
-        pop_r1 = recall_at_k(pop_model, test_data, k=1)
-        pop_r3 = recall_at_k(pop_model, test_data, k=3)
-        trans_r1 = recall_at_k(trans_model, test_data, k=1)
-        trans_r3 = recall_at_k(trans_model, test_data, k=3)
+        pop_r1_list.append(recall_at_k(pop_model, test_data, k=1))
+        pop_r3_list.append(recall_at_k(pop_model, test_data, k=3))
+        trans_r1_list.append(recall_at_k(trans_model, test_data, k=1))
+        trans_r3_list.append(recall_at_k(trans_model, test_data, k=3))
 
-        pop_r1_list.append(pop_r1)
-        pop_r3_list.append(pop_r3)
-        trans_r1_list.append(trans_r1)
-        trans_r3_list.append(trans_r3)
-
-    print("\n================ MULTI-SEED BENCHMARK RESULTS ================")
-    pop_r1_mean, pop_r1_std = np.mean(pop_r1_list) * 100, np.std(pop_r1_list) * 100
-    trans_r1_mean, trans_r1_std = np.mean(trans_r1_list) * 100, np.std(trans_r1_list) * 100
-    pop_r3_mean, pop_r3_std = np.mean(pop_r3_list) * 100, np.std(pop_r3_list) * 100
-    trans_r3_mean, trans_r3_std = np.mean(trans_r3_list) * 100, np.std(trans_r3_list) * 100
-
-    print(f"Popularity  Recall@1: {pop_r1_mean:.2f}% +/- {pop_r1_std:.2f}%")
-    print(f"Transition  Recall@1: {trans_r1_mean:.2f}% +/- {trans_r1_std:.2f}%")
-    print(f"Popularity  Recall@3: {pop_r3_mean:.2f}% +/- {pop_r3_std:.2f}%")
-    print(f"Transition  Recall@3: {trans_r3_mean:.2f}% +/- {trans_r3_std:.2f}%")
-    print("==============================================================")
+    pop_r1_m, pop_r1_s = float(np.mean(pop_r1_list) * 100), float(np.std(pop_r1_list) * 100)
+    trans_r1_m, trans_r1_s = float(np.mean(trans_r1_list) * 100), float(np.std(trans_r1_list) * 100)
+    pop_r3_m, pop_r3_s = float(np.mean(pop_r3_list) * 100), float(np.std(pop_r3_list) * 100)
+    trans_r3_m, trans_r3_s = float(np.mean(trans_r3_list) * 100), float(np.std(trans_r3_list) * 100)
 
     return {
-        "popularity_recall@1": {"mean": float(pop_r1_mean), "std": float(pop_r1_std)},
-        "transition_recall@1": {"mean": float(trans_r1_mean), "std": float(trans_r1_std)},
-        "popularity_recall@3": {"mean": float(pop_r3_mean), "std": float(pop_r3_std)},
-        "transition_recall@3": {"mean": float(trans_r3_mean), "std": float(trans_r3_std)},
+        "popularity_recall@1": {"mean": pop_r1_m, "std": pop_r1_s},
+        "transition_recall@1": {"mean": trans_r1_m, "std": trans_r1_s},
+        "popularity_recall@3": {"mean": pop_r3_m, "std": pop_r3_s},
+        "transition_recall@3": {"mean": trans_r3_m, "std": trans_r3_s},
     }
 
 
