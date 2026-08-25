@@ -14,7 +14,7 @@ def run_benchmark() -> None:
 
     with RESULTS_PATH.open("w", newline="", encoding="utf-8") as file:
         writer = csv.DictWriter(
-             file,
+            file,
             fieldnames=[
                 "game_id",
                 "network",
@@ -29,10 +29,10 @@ def run_benchmark() -> None:
         writer.writeheader()
 
         for network in NETWORK_PROFILES.values():
-             for game in GAME_CATALOG.values():
-                 for run in range(RUNS):
-                     result = simulate_baseline_load(game, network)
-                     writer.writerow(
+            for game in GAME_CATALOG.values():
+                for run in range(RUNS):
+                    result = simulate_baseline_load(game, network)
+                    writer.writerow(
                         {
                             "game_id": result.game_id,
                             "network": result.network,
@@ -45,7 +45,5 @@ def run_benchmark() -> None:
                     )
 
 
-
 if __name__ == "__main__":
     run_benchmark()
-          
