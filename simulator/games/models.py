@@ -7,7 +7,6 @@ class GameResource:
     critical_bytes: int
     core_bytes: int
     secondary_bytes: int
-    category: str = "unknown"
 
     @property
     def total_bytes(self) -> int:
