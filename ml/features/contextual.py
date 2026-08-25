@@ -34,3 +34,4 @@ def extract_contextual_features(sessions: list[Any]) -> list[dict[str, Any]]:
             )
 
     return features
+
