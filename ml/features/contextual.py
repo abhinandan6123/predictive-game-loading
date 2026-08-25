@@ -26,7 +26,9 @@ def extract_contextual_features(sessions: list[Any]) -> list[dict[str, Any]]:
             features.append(
                 {
                     "current_game": games[i],
+                    "previous_game": "START" if i == 0 else games[i - 1],
                     "target_game": games[i + 1],
+                    "next_game": games[i + 1],
                     "position": i,
                     "session_len": len(games),
                     "is_first": i == 0,
