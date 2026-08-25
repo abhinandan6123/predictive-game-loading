@@ -2,10 +2,10 @@
 Contextual Feature Engineering Pipeline (PulseLoad)
 Extracts session position, switch frequency, and lag transitions.
 """
-from typing import Any, Dict, List
+from typing import Any
 
 
-def extract_contextual_features(sessions: List[Any]) -> List[Dict[str, Any]]:
+def extract_contextual_features(sessions: list[Any]) -> list[dict[str, Any]]:
     """
     Extracts contextual features from session sequences.
 

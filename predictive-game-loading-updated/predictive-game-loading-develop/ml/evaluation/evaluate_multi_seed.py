@@ -2,13 +2,13 @@
 Multi-Seed Evaluation Harness (Deliverable D4-03)
 Runs repeated experiments across multiple seeds and computes mean +/- std dev.
 """
-from typing import List
+
 import numpy as np
 
 from ml.baselines.popularity import PopularityPredictor
-from ml.prediction.transition_predictor import TransitionPredictor
-from ml.features.transitions import extract_transitions
 from ml.evaluation.metrics import recall_at_k
+from ml.features.transitions import extract_transitions
+from ml.prediction.transition_predictor import TransitionPredictor
 from simulator.sessions.generator import generate_sessions
 
 
@@ -23,7 +23,7 @@ def build_examples(sessions):
     return sources, targets
 
 
-def evaluate_across_seeds(seeds: List[int] = [42, 101, 2024, 7, 99], session_count: int = 10000):
+def evaluate_across_seeds(seeds: list[int] = [42, 101, 2024, 7, 99], session_count: int = 10000):
     pop_r1_list, pop_r3_list = [], []
     trans_r1_list, trans_r3_list = [], []
 

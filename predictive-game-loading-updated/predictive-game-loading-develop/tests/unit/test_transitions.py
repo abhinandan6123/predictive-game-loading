@@ -1,5 +1,4 @@
 from ml.features.transitions import extract_transitions, transition_counts
-
 from simulator.sessions.generator import generate_sessions
 
 
