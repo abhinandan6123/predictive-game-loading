@@ -1,16 +1,11 @@
 import random
 
+from simulator.games.catalog import GAME_CATALOG
 from simulator.sessions.behavior import choose_next_game, generate_behavior
 from simulator.sessions.events import SessionEvent
 from simulator.sessions.session import Session
 
-GAME_IDS = [
-    "game_01",
-    "game_02",
-    "game_03",
-    "game_04",
-    "game_05",
-]
+GAME_IDS = list(GAME_CATALOG)
 
 
 def generate_sessions(
