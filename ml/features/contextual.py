@@ -15,9 +15,9 @@ def extract_contextual_features(sessions: list[Any]) -> list[dict[str, Any]]:
             for ev in session.events:
                 game_id = getattr(ev, "game_id", None)
                 if game_id:
-                    games.append(game_id)
+                    games.append(str(game_id))
         elif hasattr(session, "games"):
-            games = list(session.games)
+            games = [str(g) for g in session.games]
 
         if len(games) < 2:
             continue
@@ -34,4 +34,3 @@ def extract_contextual_features(sessions: list[Any]) -> list[dict[str, Any]]:
             )
 
     return features
-

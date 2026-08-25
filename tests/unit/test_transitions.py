@@ -1,3 +1,7 @@
+"""Unit tests for transition feature extraction and counts."""
+
+from __future__ import annotations
+
 from ml.features.transitions import extract_transitions, transition_counts
 from simulator.sessions.generator import Session, SessionEvent
 
@@ -77,4 +81,3 @@ def test_transition_counts() -> None:
     counts = transition_counts(transitions)
 
     assert counts[("game_a", "game_b")] == 2
-    
