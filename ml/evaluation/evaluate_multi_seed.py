@@ -65,6 +65,7 @@ def evaluate_across_seeds(
         ctx_model = ContextualPredictor()
         ctx_model.fit(train_ctx)
 
+        # Generate top-k predictions
         pop_preds_k1 = [pop_model.predict_top_k(1) for _ in test_trans]
         pop_preds_k3 = [pop_model.predict_top_k(3) for _ in test_trans]
 
@@ -74,6 +75,7 @@ def evaluate_across_seeds(
         ctx_preds_k1 = [ctx_model.predict_top_k(ctx, 1) for ctx in test_ctx]
         ctx_preds_k3 = [ctx_model.predict_top_k(ctx, 3) for ctx in test_ctx]
 
+        # Top-1 predictions & confidence for ECE
         pop_top_games = [p[0] if p else "" for p in pop_preds_k1]
         pop_top_probs = [pop_model.predict_probabilities().get(g, 0.0) for g in pop_top_games]
 
@@ -89,6 +91,7 @@ def evaluate_across_seeds(
             for ctx, g in zip(test_ctx, ctx_top_games, strict=True)
         ]
 
+        # Recalls
         metrics_tracker["popularity_recall@1"].append(recall_at_k(pop_preds_k1, test_targets))
         metrics_tracker["transition_recall@1"].append(recall_at_k(trans_preds_k1, test_targets))
         metrics_tracker["contextual_recall@1"].append(recall_at_k(ctx_preds_k1, test_targets))
@@ -97,6 +100,7 @@ def evaluate_across_seeds(
         metrics_tracker["transition_recall@3"].append(recall_at_k(trans_preds_k3, test_targets))
         metrics_tracker["contextual_recall@3"].append(recall_at_k(ctx_preds_k3, test_targets))
 
+        # Precisions
         metrics_tracker["popularity_precision@1"].append(
             precision_at_k(pop_preds_k1, test_targets, k=1)
         )
@@ -107,10 +111,12 @@ def evaluate_across_seeds(
             precision_at_k(ctx_preds_k1, test_targets, k=1)
         )
 
+        # MRR
         metrics_tracker["popularity_mrr"].append(mean_reciprocal_rank(pop_preds_k3, test_targets))
         metrics_tracker["transition_mrr"].append(mean_reciprocal_rank(trans_preds_k3, test_targets))
         metrics_tracker["contextual_mrr"].append(mean_reciprocal_rank(ctx_preds_k3, test_targets))
 
+        # Calibration (ECE)
         metrics_tracker["popularity_ece"].append(
             expected_calibration_error(pop_top_probs, test_targets, pop_top_games)
         )
