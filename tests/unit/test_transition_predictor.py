@@ -30,6 +30,22 @@ def test_unknown_source_returns_empty_prediction() -> None:
     predictor.fit([TransitionExample("game_01", "game_02")])
 
     assert predictor.predict_top_k("game_05", 3) == []
+    assert predictor.predict_probabilities("game_05") == {}
+
+
+def test_transition_predictor_probabilities() -> None:
+    predictor = TransitionPredictor()
+    predictor.fit(
+        [
+            TransitionExample("game_01", "game_02"),
+            TransitionExample("game_01", "game_02"),
+            TransitionExample("game_01", "game_03"),
+            TransitionExample("game_01", "game_03"),
+        ]
+    )
+    probs = predictor.predict_probabilities("game_01")
+    assert probs["game_02"] == 0.5
+    assert probs["game_03"] == 0.5
 
 
 def test_transition_predictor_rejects_empty_training_data() -> None:

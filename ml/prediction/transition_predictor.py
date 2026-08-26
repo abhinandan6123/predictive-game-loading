@@ -30,3 +30,17 @@ class TransitionPredictor:
             return []
 
         return [game_id for game_id, _ in counts.most_common(k)]
+
+    def predict_probabilities(
+        self,
+        source_game: str,
+    ) -> dict[str, float]:
+        counts = self._counts.get(source_game)
+        if not counts:
+            return {}
+
+        total = sum(counts.values())
+        if total == 0:
+            return {}
+
+        return {game_id: count / total for game_id, count in counts.items()}
