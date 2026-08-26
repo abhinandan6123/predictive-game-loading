@@ -9,9 +9,9 @@ client = TestClient(app)
 def setup_predictor() -> None:
     predictor.fit(
         [
-            TransitionExample("game_01", "game_02"),
-            TransitionExample("game_01", "game_02"),
-            TransitionExample("game_01", "game_03"),
+            TransitionExample("game_01", "game_002"),
+            TransitionExample("game_01", "game_002"),
+            TransitionExample("game_01", "game_003"),
         ]
     )
 
@@ -39,8 +39,8 @@ def test_predict_endpoint() -> None:
     data = response.json()
 
     assert data["current_game_id"] == "game_01"
-    assert list(data["probabilities"]) == ["game_02", "game_03"]
-    assert round(data["probabilities"]["game_02"], 2) == 0.67
+    assert list(data["probabilities"]) == ["game_002", "game_003"]
+    assert round(data["probabilities"]["game_002"], 2) == 0.67
 
 
 def test_decide_endpoint_full() -> None:
@@ -119,7 +119,7 @@ def test_prefetch_endpoint() -> None:
 
     assert data["current_game_id"] == "game_01"
     assert len(data["recommendations"]) == 2
-    assert data["recommendations"][0]["target_game_id"] == "game_02"
+    assert data["recommendations"][0]["target_game_id"] == "game_002"
     assert data["recommendations"][0]["action"] == "FULL"
 
 
@@ -138,12 +138,12 @@ def test_predict_prefetch_compatibility_endpoint() -> None:
     assert len(response.json()["recommendations"]) == 2
 
 
-def test_prefetch_execute_accepts_full() -> None:
+def test_prefetch_execute_full() -> None:
     response = client.post(
         "/prefetch/execute",
         json={
             "current_game_id": "game_01",
-            "target_game_id": "game_02",
+            "target_game_id": "game_002",
             "action": "FULL",
             "fraction": 1.0,
         },
@@ -153,23 +153,98 @@ def test_prefetch_execute_accepts_full() -> None:
 
     data = response.json()
 
-    assert data["status"] == "accepted"
+    assert data["status"] == "executed"
     assert data["action"] == "FULL"
+    assert data["fraction"] == 1.0
+    assert data["requested_bytes"] > 0
+    assert data["loaded_bytes"] > 0
+    assert data["cache_state"] == "READY"
 
 
-def test_prefetch_execute_skips() -> None:
+def test_prefetch_execute_partial() -> None:
     response = client.post(
         "/prefetch/execute",
         json={
             "current_game_id": "game_01",
-            "target_game_id": "game_02",
+            "target_game_id": "game_003",
+            "action": "PARTIAL",
+            "fraction": 0.5,
+        },
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["status"] == "executed"
+    assert data["action"] == "PARTIAL"
+    assert data["fraction"] == 0.5
+    assert data["requested_bytes"] > 0
+    assert data["loaded_bytes"] == data["requested_bytes"]
+    assert data["cache_state"] == "PARTIAL"
+
+
+def test_prefetch_execute_skips_without_loading() -> None:
+    response = client.post(
+        "/prefetch/execute",
+        json={
+            "current_game_id": "game_01",
+            "target_game_id": "game_002",
             "action": "SKIP",
             "fraction": 0.0,
         },
     )
 
     assert response.status_code == 200
-    assert response.json()["status"] == "skipped"
+
+    data = response.json()
+
+    assert data["status"] == "skipped"
+    assert data["action"] == "SKIP"
+    assert data["fraction"] == 0.0
+    assert data["requested_bytes"] == 0
+    assert data["loaded_bytes"] == 0
+    assert data["cache_state"] is None
+
+
+def test_prefetch_execute_repeated_full_is_cache_hit() -> None:
+    payload = {
+        "current_game_id": "game_01",
+        "target_game_id": "game_004",
+        "action": "FULL",
+        "fraction": 1.0,
+    }
+
+    first = client.post("/prefetch/execute", json=payload)
+    second = client.post("/prefetch/execute", json=payload)
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+
+    first_data = first.json()
+    second_data = second.json()
+
+    assert first_data["status"] == "executed"
+    assert first_data["loaded_bytes"] > 0
+
+    assert second_data["status"] == "cache_hit"
+    assert second_data["loaded_bytes"] == 0
+    assert second_data["requested_bytes"] == first_data["requested_bytes"]
+    assert second_data["cache_state"] == "READY"
+
+
+def test_prefetch_execute_unknown_game_is_rejected() -> None:
+    response = client.post(
+        "/prefetch/execute",
+        json={
+            "current_game_id": "game_01",
+            "target_game_id": "game_999",
+            "action": "FULL",
+            "fraction": 1.0,
+        },
+    )
+
+    assert response.status_code == 400
 
 
 def test_metrics_endpoint() -> None:

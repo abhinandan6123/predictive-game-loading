@@ -1,13 +1,19 @@
 from collections import Counter
 from typing import Any
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
 from ml.prediction.transition_predictor import TransitionPredictor
 from services.policy.decision import make_prefetch_decision
-from services.policy.models import PolicyConfig, PolicyInputs, PrefetchAction
+from services.policy.models import (
+    PolicyConfig,
+    PolicyInputs,
+    PrefetchAction,
+    PrefetchDecision,
+)
 from services.policy.scoring import calculate_policy_score
+from services.prefetch import PrefetchExecutor
 
 app = FastAPI(
     title="PulseLoad API",
@@ -16,6 +22,7 @@ app = FastAPI(
 )
 
 predictor = TransitionPredictor()
+prefetch_executor = PrefetchExecutor()
 
 _metrics: Counter[str] = Counter()
 
@@ -81,6 +88,9 @@ class ExecuteResponse(BaseModel):
     action: PrefetchAction
     fraction: float
     status: str
+    requested_bytes: int
+    loaded_bytes: int
+    cache_state: str | None
 
 
 def _record(metric: str) -> None:
@@ -194,19 +204,38 @@ async def prefetch(request: PrefetchRequest) -> PrefetchResponse:
 @app.post("/prefetch/execute", response_model=ExecuteResponse)
 async def execute_prefetch(request: ExecuteRequest) -> ExecuteResponse:
     _record("prefetch_execute_requests_total")
+
+    decision = PrefetchDecision(
+        action=request.action,
+        score=0.0,
+        fraction=request.fraction,
+        explanation="API execution request",
+    )
+
+    try:
+        result = prefetch_executor.execute(
+            target_game_id=request.target_game_id,
+            decision=decision,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
     _record(f"executions_{request.action.value.lower()}")
 
-    if request.action is PrefetchAction.SKIP:
-        status = "skipped"
-    else:
-        status = "accepted"
+    if result.status.value == "cache_hit":
+        _record("executions_cache_hit")
+    elif result.status.value == "executed":
+        _record("executions_completed")
 
     return ExecuteResponse(
         current_game_id=request.current_game_id,
         target_game_id=request.target_game_id,
-        action=request.action,
-        fraction=request.fraction,
-        status=status,
+        action=result.action,
+        fraction=result.fraction,
+        status=result.status.value,
+        requested_bytes=result.requested_bytes,
+        loaded_bytes=result.loaded_bytes,
+        cache_state=(result.cache_state.value if result.cache_state is not None else None),
     )
 
 
