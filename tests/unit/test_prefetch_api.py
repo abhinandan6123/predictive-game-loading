@@ -275,3 +275,35 @@ def test_dashboard_endpoint() -> None:
     assert response.status_code == 200
     assert "text/html" in response.headers["content-type"]
     assert "PulseLoad Runtime Dashboard" in response.text
+
+
+def test_execute_prefetch_blocks_responsible_play_restriction() -> None:
+    response = client.post(
+        "/prefetch/execute",
+        json={
+            "current_game_id": "game_001",
+            "target_game_id": "game_002",
+            "action": "FULL",
+            "fraction": 1.0,
+            "safety_block": True,
+        },
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "responsible-play restriction active"
+
+
+def test_execute_prefetch_blocks_restricted_session() -> None:
+    response = client.post(
+        "/prefetch/execute",
+        json={
+            "current_game_id": "game_001",
+            "target_game_id": "game_002",
+            "action": "FULL",
+            "fraction": 1.0,
+            "restricted_session": True,
+        },
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "restricted session"
