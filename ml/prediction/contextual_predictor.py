@@ -9,7 +9,7 @@ from typing import Any
 class ContextualPredictor:
     """Predicts next-game transitions leveraging contextual, behavioral, and user signals."""
 
-    def __init__(self, alpha: float = 0.5, beta: float = 0.3, gamma: float = 0.2) -> None:
+    def __init__(self, alpha: float = 0.85, beta: float = 0.10, gamma: float = 0.05) -> None:
         """Initializes weights for transition, user affinity, and global popularity priors."""
         self.alpha = alpha
         self.beta = beta
@@ -85,12 +85,12 @@ class ContextualPredictor:
 
         # 4. Contextual Modulation (User Affinity & Exploration adjustments)
         if user_affinity > 0 and curr_game in candidate_scores:
-            candidate_scores[curr_game] *= (1.0 + user_affinity)
+            candidate_scores[curr_game] *= 1.0 + user_affinity
 
         if exploration_rate > 0.7:
             for g in candidate_scores:
                 if g not in curr_counts:
-                    candidate_scores[g] *= 1.2
+                    candidate_scores[g] *= 1.1
 
         total_score = sum(candidate_scores.values())
         if total_score == 0:
