@@ -1,7 +1,9 @@
 from collections import Counter
+from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 from ml.prediction.transition_predictor import TransitionPredictor
@@ -21,6 +23,8 @@ app = FastAPI(
     description="Predictive adaptive game loading system",
     version="0.2.0",
 )
+
+DASHBOARD_PATH = Path(__file__).resolve().parents[2] / "dashboard" / "index.html"
 
 predictor = TransitionPredictor()
 prefetch_executor = PrefetchExecutor()
@@ -306,6 +310,11 @@ async def execute_prefetch(request: ExecuteRequest) -> ExecuteResponse:
         loaded_bytes=result.loaded_bytes,
         cache_state=(result.cache_state.value if result.cache_state is not None else None),
     )
+
+
+@app.get("/dashboard", include_in_schema=False)
+async def dashboard() -> FileResponse:
+    return FileResponse(DASHBOARD_PATH, media_type="text/html")
 
 
 @app.get("/metrics")
