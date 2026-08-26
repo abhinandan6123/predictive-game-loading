@@ -16,6 +16,7 @@ from services.policy.models import (
 )
 from services.policy.scoring import calculate_policy_score
 from services.prefetch import PrefetchExecutor
+from services.safety import ResponsiblePlayGuard
 from services.telemetry import TelemetryCollector, TelemetryEvent, TelemetryEventType
 
 app = FastAPI(
@@ -28,6 +29,7 @@ DASHBOARD_PATH = Path(__file__).resolve().parents[2] / "dashboard" / "index.html
 
 predictor = TransitionPredictor()
 prefetch_executor = PrefetchExecutor()
+responsible_play_guard = ResponsiblePlayGuard()
 telemetry = TelemetryCollector()
 
 _metrics: Counter[str] = Counter()
@@ -86,6 +88,9 @@ class ExecuteRequest(BaseModel):
     target_game_id: str
     action: PrefetchAction
     fraction: float = Field(ge=0.0, le=1.0)
+    responsible_play_allowed: bool = True
+    restricted_session: bool = False
+    safety_block: bool = False
 
 
 class ExecuteResponse(BaseModel):
@@ -223,6 +228,19 @@ async def prefetch(request: PrefetchRequest) -> PrefetchResponse:
 @app.post("/prefetch/execute", response_model=ExecuteResponse)
 async def execute_prefetch(request: ExecuteRequest) -> ExecuteResponse:
     _record("prefetch_execute_requests_total")
+
+    safety_decision = responsible_play_guard.evaluate(
+        responsible_play_allowed=request.responsible_play_allowed,
+        restricted_session=request.restricted_session,
+        safety_block=request.safety_block,
+    )
+
+    if not safety_decision.allowed:
+        _record("executions_safety_blocked")
+        raise HTTPException(
+            status_code=403,
+            detail=safety_decision.reason,
+        )
 
     decision = PrefetchDecision(
         action=request.action,

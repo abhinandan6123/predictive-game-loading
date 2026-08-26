@@ -1,0 +1,6 @@
+scenario,condition,load_ms,time_to_playable_ms,prefetch,cache_hit
+baseline_cold_load,cold,8000.0,8000.0,False,False
+pulseload_prefetch,warm,1500.0,1500.0,True,True
+pulseload_partial_prefetch,partial,2500.0,2500.0,True,False
+pulseload_full_prefetch,warm,1200.0,1200.0,True,True
+baseline_second_load,cold,7200.0,7200.0,False,False
