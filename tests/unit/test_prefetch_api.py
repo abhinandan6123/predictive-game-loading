@@ -267,3 +267,11 @@ def test_invalid_decision_input_is_rejected() -> None:
     )
 
     assert response.status_code == 422
+
+
+def test_dashboard_endpoint() -> None:
+    response = client.get("/dashboard")
+
+    assert response.status_code == 200
+    assert "text/html" in response.headers["content-type"]
+    assert "PulseLoad Runtime Dashboard" in response.text

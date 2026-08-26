@@ -4,7 +4,6 @@ from services.cache import CacheHierarchy, CacheState
 from services.policy.models import PrefetchAction, PrefetchDecision
 from services.prefetch import ExecutionStatus, PrefetchExecutor
 from simulator.games.catalog import GAME_CATALOG
-from simulator.games.models import GameResource
 
 
 def make_executor() -> PrefetchExecutor:
