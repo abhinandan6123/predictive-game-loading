@@ -24,34 +24,58 @@ def evaluate_across_seeds(
     trans_r3_list: list[float] = []
 
     for seed in seeds:
-        sessions = generate_sessions(n_sessions=session_count, seed=seed)
+        sessions = generate_sessions(count=session_count, seed=seed)
         transitions = extract_transitions(sessions)
 
         split_idx = int(len(transitions) * 0.8)
         train_data = transitions[:split_idx]
         test_data = transitions[split_idx:]
 
+        train_targets = [t.target_game for t in train_data]
+        test_targets = [t.target_game for t in test_data]
+
         pop_model = PopularityPredictor()
-        pop_model.fit(train_data)
+        pop_model.fit(train_targets)
+
         trans_model = TransitionPredictor()
         trans_model.fit(train_data)
 
-        pop_r1_list.append(recall_at_k(pop_model, test_data, k=1))
-        pop_r3_list.append(recall_at_k(pop_model, test_data, k=3))
-        trans_r1_list.append(recall_at_k(trans_model, test_data, k=1))
-        trans_r3_list.append(recall_at_k(trans_model, test_data, k=3))
+        # Generate top-k predictions
+        pop_preds_k1 = [pop_model.predict_top_k(1) for _ in test_data]
+        pop_preds_k3 = [pop_model.predict_top_k(3) for _ in test_data]
 
-    pop_r1_m, pop_r1_s = float(np.mean(pop_r1_list) * 100), float(np.std(pop_r1_list) * 100)
-    trans_r1_m, trans_r1_s = float(np.mean(trans_r1_list) * 100), float(np.std(trans_r1_list) * 100)
-    pop_r3_m, pop_r3_s = float(np.mean(pop_r3_list) * 100), float(np.std(pop_r3_list) * 100)
-    trans_r3_m, trans_r3_s = float(np.mean(trans_r3_list) * 100), float(np.std(trans_r3_list) * 100)
+        trans_preds_k1 = [trans_model.predict_top_k(t.source_game, 1) for t in test_data]
+        trans_preds_k3 = [trans_model.predict_top_k(t.source_game, 3) for t in test_data]
 
-    return {
-        "popularity_recall@1": {"mean": pop_r1_m, "std": pop_r1_s},
-        "transition_recall@1": {"mean": trans_r1_m, "std": trans_r1_s},
-        "popularity_recall@3": {"mean": pop_r3_m, "std": pop_r3_s},
-        "transition_recall@3": {"mean": trans_r3_m, "std": trans_r3_s},
+        pop_r1_list.append(recall_at_k(pop_preds_k1, test_targets))
+        pop_r3_list.append(recall_at_k(pop_preds_k3, test_targets))
+        trans_r1_list.append(recall_at_k(trans_preds_k1, test_targets))
+        trans_r3_list.append(recall_at_k(trans_preds_k3, test_targets))
+
+    results = {
+        "popularity_recall@1": {
+            "mean": float(np.mean(pop_r1_list) * 100),
+            "std": float(np.std(pop_r1_list) * 100),
+        },
+        "transition_recall@1": {
+            "mean": float(np.mean(trans_r1_list) * 100),
+            "std": float(np.std(trans_r1_list) * 100),
+        },
+        "popularity_recall@3": {
+            "mean": float(np.mean(pop_r3_list) * 100),
+            "std": float(np.std(pop_r3_list) * 100),
+        },
+        "transition_recall@3": {
+            "mean": float(np.mean(trans_r3_list) * 100),
+            "std": float(np.std(trans_r3_list) * 100),
+        },
     }
+
+    print("\n--- Multi-Seed Evaluation Results ---")
+    for metric, stats in results.items():
+        print(f"{metric:25s}: {stats['mean']:.2f}% (std: {stats['std']:.2f}%)")
+
+    return results
 
 
 if __name__ == "__main__":
