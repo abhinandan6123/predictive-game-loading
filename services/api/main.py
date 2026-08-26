@@ -14,6 +14,7 @@ from services.policy.models import (
 )
 from services.policy.scoring import calculate_policy_score
 from services.prefetch import PrefetchExecutor
+from services.telemetry import TelemetryCollector, TelemetryEvent, TelemetryEventType
 
 app = FastAPI(
     title="PulseLoad API",
@@ -23,6 +24,7 @@ app = FastAPI(
 
 predictor = TransitionPredictor()
 prefetch_executor = PrefetchExecutor()
+telemetry = TelemetryCollector()
 
 _metrics: Counter[str] = Counter()
 
@@ -147,6 +149,19 @@ async def predict(request: PredictRequest) -> PredictResponse:
 
     _record("predict_requests_total")
 
+    telemetry.record(
+        TelemetryEvent(
+            event_type=TelemetryEventType.PREDICTION,
+            game_id=request.current_game_id,
+            timestamp_ms=0.0,
+            value=float(len(sorted_probabilities)),
+            metadata={
+                "top_k": request.top_k,
+                "candidates": len(sorted_probabilities),
+            },
+        )
+    )
+
     return PredictResponse(
         current_game_id=request.current_game_id,
         probabilities=sorted_probabilities,
@@ -227,6 +242,60 @@ async def execute_prefetch(request: ExecuteRequest) -> ExecuteResponse:
     elif result.status.value == "executed":
         _record("executions_completed")
 
+    telemetry.record(
+        TelemetryEvent(
+            event_type=TelemetryEventType.PREFETCH,
+            game_id=request.target_game_id,
+            timestamp_ms=0.0,
+            status=result.status.value,
+            metadata={
+                "action": result.action.value,
+                "fraction": result.fraction,
+            },
+        )
+    )
+
+    if result.cache_state is not None:
+        telemetry.record(
+            TelemetryEvent(
+                event_type=TelemetryEventType.CACHE,
+                game_id=request.target_game_id,
+                timestamp_ms=0.0,
+                status=("hit" if result.status.value == "cache_hit" else "miss"),
+                metadata={
+                    "cache_state": result.cache_state.value,
+                    "loaded_bytes": result.loaded_bytes,
+                },
+            )
+        )
+
+    if result.loaded_bytes > 0:
+        telemetry.record(
+            TelemetryEvent(
+                event_type=TelemetryEventType.LOAD,
+                game_id=request.target_game_id,
+                timestamp_ms=0.0,
+                status=result.status.value,
+                metadata={
+                    "loaded_bytes": result.loaded_bytes,
+                    "playable_bytes": result.playable_bytes,
+                    "total_bytes": result.total_bytes,
+                },
+            )
+        )
+
+        if result.playable_bytes > 0:
+            telemetry.record(
+                TelemetryEvent(
+                    event_type=TelemetryEventType.PLAYABLE,
+                    game_id=request.target_game_id,
+                    timestamp_ms=0.0,
+                    metadata={
+                        "playable_bytes": result.playable_bytes,
+                    },
+                )
+            )
+
     return ExecuteResponse(
         current_game_id=request.current_game_id,
         target_game_id=request.target_game_id,
@@ -243,6 +312,7 @@ async def execute_prefetch(request: ExecuteRequest) -> ExecuteResponse:
 async def metrics() -> dict[str, Any]:
     return {
         "requests": dict(_metrics),
+        "telemetry": telemetry.metrics(),
     }
 
 
