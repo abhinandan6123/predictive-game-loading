@@ -48,10 +48,6 @@ class PrefetchExecutor:
         target_game_id: str,
         decision: PrefetchDecision,
     ) -> PrefetchExecutionResult:
-        resource = self._get_resource(target_game_id)
-
-        load = progressive_load(resource)
-
         if decision.action is PrefetchAction.SKIP:
             return PrefetchExecutionResult(
                 target_game_id=target_game_id,
@@ -61,10 +57,13 @@ class PrefetchExecutor:
                 cache_state=None,
                 requested_bytes=0,
                 loaded_bytes=0,
-                playable_bytes=load.playable_bytes,
-                total_bytes=load.total_bytes,
+                playable_bytes=0,
+                total_bytes=0,
                 stages=(),
             )
+
+        resource = self._get_resource(target_game_id)
+        load = progressive_load(resource)
 
         if decision.action is PrefetchAction.PARTIAL:
             return self._execute_partial(resource, decision, load)
