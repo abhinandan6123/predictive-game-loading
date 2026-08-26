@@ -14,9 +14,7 @@ def test_progressive_load_playable_bytes() -> None:
     for game in GAME_CATALOG.values():
         result = progressive_load(game)
 
-        assert result.playable_bytes == (
-            game.critical_bytes + game.core_bytes
-        )
+        assert result.playable_bytes == (game.critical_bytes + game.core_bytes)
 
 
 def test_progressive_load_total_bytes() -> None:
