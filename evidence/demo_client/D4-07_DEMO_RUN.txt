@@ -1,0 +1,30 @@
+================================================================
+PulseLoad Baseline vs PulseLoad Demo
+================================================================
+
+Scenario: game_001 -> game_002
+Network:  medium
+
+BASELINE
+  playable_ms: 16960.00
+  total_ms:    31840.00
+
+PULSELOAD
+  predicted_game: game_002
+  probability:    0.90
+  policy:         FULL
+  fraction:       1.00
+  status:         executed
+  requested_bytes:110000000
+  loaded_bytes:   110000000
+  cache_state:    READY
+  repeat_cache_hit:True
+  repeat_loaded_bytes:0
+
+COMPARISON
+  baseline_playable_ms: 16960.00
+  PulseLoad: deterministic demo transition through real policy/executor
+
+Note: the demo transition is deterministic because the runtime
+TransitionPredictor requires fitted transition examples.
+================================================================
