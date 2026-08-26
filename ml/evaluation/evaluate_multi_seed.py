@@ -77,8 +77,12 @@ def evaluate_across_seeds(
         metrics_tracker["transition_recall@3"].append(recall_at_k(trans_preds_k3, test_targets))
 
         # Precisions
-        metrics_tracker["popularity_precision@1"].append(precision_at_k(pop_preds_k1, test_targets, k=1))
-        metrics_tracker["transition_precision@1"].append(precision_at_k(trans_preds_k1, test_targets, k=1))
+        metrics_tracker["popularity_precision@1"].append(
+            precision_at_k(pop_preds_k1, test_targets, k=1)
+        )
+        metrics_tracker["transition_precision@1"].append(
+            precision_at_k(trans_preds_k1, test_targets, k=1)
+        )
 
         # MRR
         metrics_tracker["popularity_mrr"].append(mean_reciprocal_rank(pop_preds_k3, test_targets))
