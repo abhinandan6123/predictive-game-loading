@@ -1,5 +1,5 @@
-from simulator.games.catalog import GAME_CATALOG
 from services.loading.progressive import progressive_load
+from simulator.games.catalog import GAME_CATALOG
 
 
 def test_progressive_load_preserves_game_resources() -> None:
