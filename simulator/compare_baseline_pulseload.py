@@ -1,8 +1,8 @@
+from services.loading.progressive import progressive_load
 from simulator.games.catalog import GAME_CATALOG
 from simulator.network.profiles import NETWORK_PROFILES
 from simulator.network.transfer import transfer_time_ms
 from simulator.scenarios.baseline import simulate_baseline_load
-from services.loading.progressive import progressive_load
 
 
 def main() -> None:
