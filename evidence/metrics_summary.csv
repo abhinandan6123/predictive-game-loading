@@ -1,0 +1,8 @@
+metric,value
+count,5
+mean_ms,4080.0
+median_ms,2500.0
+p50_ms,2500.0
+p95_ms,7840.0
+min_ms,1200.0
+max_ms,8000.0
