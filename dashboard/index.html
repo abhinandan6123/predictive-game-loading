@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>PulseLoad — Runtime Dashboard</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #0b1020;
+      color: #edf2f7;
+    }
+
+    body {
+      margin: 0;
+      background:
+        radial-gradient(circle at top left, #18254a 0, transparent 40%),
+        #0b1020;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 32px 20px 60px;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 20px;
+      margin-bottom: 28px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 32px;
+      letter-spacing: -0.03em;
+    }
+
+    .subtitle {
+      margin-top: 8px;
+      color: #a7b3c7;
+    }
+
+    .status {
+      padding: 8px 12px;
+      border: 1px solid #2f855a;
+      border-radius: 999px;
+      color: #9ae6b4;
+      font-size: 13px;
+      background: rgba(47, 133, 90, 0.12);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .card {
+      background: rgba(20, 29, 52, 0.88);
+      border: 1px solid #263452;
+      border-radius: 14px;
+      padding: 20px;
+      box-shadow: 0 14px 40px rgba(0,0,0,.18);
+    }
+
+    .label {
+      color: #94a3b8;
+      font-size: 13px;
+      margin-bottom: 8px;
+    }
+
+    .value {
+      font-size: 28px;
+      font-weight: 700;
+    }
+
+    .section {
+      margin-top: 20px;
+    }
+
+    .section h2 {
+      font-size: 18px;
+      margin: 0 0 12px;
+    }
+
+    .wide {
+      grid-column: span 2;
+    }
+
+    .bar {
+      height: 10px;
+      border-radius: 999px;
+      overflow: hidden;
+      background: #1e293b;
+      margin-top: 10px;
+    }
+
+    .fill {
+      height: 100%;
+      width: 0;
+      background: #63b3ed;
+      transition: width .3s ease;
+    }
+
+    pre {
+      margin: 0;
+      white-space: pre-wrap;
+      color: #cbd5e1;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    footer {
+      margin-top: 20px;
+      color: #64748b;
+      font-size: 12px;
+    }
+
+    @media (max-width: 900px) {
+      .grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .wide {
+        grid-column: span 2;
+      }
+    }
+
+    @media (max-width: 600px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+      .wide {
+        grid-column: span 1;
+      }
+      header {
+        display: block;
+      }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div>
+      <h1>PulseLoad Runtime Dashboard</h1>
+      <div class="subtitle">
+        Predict → Decide → Prefetch → Cache → Load → Observe
+      </div>
+    </div>
+    <div id="status" class="status">Connecting…</div>
+  </header>
+
+  <div class="grid">
+    <div class="card">
+      <div class="label">Events</div>
+      <div class="value" id="events_total">—</div>
+    </div>
+
+    <div class="card">
+      <div class="label">Prediction Requests</div>
+      <div class="value" id="prediction_requests">—</div>
+    </div>
+
+    <div class="card">
+      <div class="label">Prefetch Requests</div>
+      <div class="value" id="prefetch_requests">—</div>
+    </div>
+
+    <div class="card">
+      <div class="label">Prefetch Executed</div>
+      <div class="value" id="prefetch_executed">—</div>
+    </div>
+
+    <div class="card">
+      <div class="label">Prefetch Accuracy</div>
+      <div class="value" id="prefetch_accuracy">—</div>
+      <div class="bar"><div class="fill" id="accuracy_bar"></div></div>
+    </div>
+
+    <div class="card">
+      <div class="label">Cache Hit Rate</div>
+      <div class="value" id="cache_hit_rate">—</div>
+      <div class="bar"><div class="fill" id="cache_bar"></div></div>
+    </div>
+
+    <div class="card">
+      <div class="label">Cache Hits</div>
+      <div class="value" id="cache_hits">—</div>
+    </div>
+
+    <div class="card">
+      <div class="label">Cache Requests</div>
+      <div class="value" id="cache_requests">—</div>
+    </div>
+
+    <div class="card wide">
+      <div class="label">Load Count</div>
+      <div class="value" id="load_count">—</div>
+    </div>
+
+    <div class="card wide">
+      <div class="label">Time to Playable</div>
+      <div class="value" id="time_to_playable_ms">—</div>
+    </div>
+
+    <div class="card">
+      <div class="label">P50 Load</div>
+      <div class="value" id="p50_load_ms">—</div>
+    </div>
+
+    <div class="card">
+      <div class="label">P95 Load</div>
+      <div class="value" id="p95_load_ms">—</div>
+    </div>
+
+    <div class="card wide">
+      <div class="label">Raw Runtime Metrics</div>
+      <pre id="raw">Loading…</pre>
+    </div>
+
+    <div class="card wide">
+      <div class="label">Refresh</div>
+      <pre>Dashboard polls /metrics every 2 seconds.</pre>
+    </div>
+  </div>
+
+  <footer>
+    PulseLoad • runtime telemetry • local / Docker / public HTTPS compatible
+  </footer>
+</div>
+
+<script>
+  const ids = [
+    "events_total",
+    "prediction_requests",
+    "prefetch_requests",
+    "prefetch_executed",
+    "cache_hits",
+    "cache_requests",
+    "load_count"
+  ];
+
+  function number(value) {
+    return Number(value ?? 0).toLocaleString();
+  }
+
+  function percent(value) {
+    return `${(Number(value ?? 0) * 100).toFixed(1)}%`;
+  }
+
+  function milliseconds(value) {
+    return `${Number(value ?? 0).toFixed(2)} ms`;
+  }
+
+  async function refresh() {
+    const status = document.getElementById("status");
+
+    try {
+      const response = await fetch("/metrics", {
+        cache: "no-store",
+        headers: { "Accept": "application/json" }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+      const telemetry = data.telemetry || {};
+      const requests = data.requests || {};
+
+      document.getElementById("events_total").textContent =
+        number(telemetry.events_total);
+
+      document.getElementById("prediction_requests").textContent =
+        number(telemetry.prediction_requests);
+
+      document.getElementById("prefetch_requests").textContent =
+        number(telemetry.prefetch_requests);
+
+      document.getElementById("prefetch_executed").textContent =
+        number(telemetry.prefetch_executed);
+
+      document.getElementById("prefetch_accuracy").textContent =
+        percent(telemetry.prefetch_accuracy);
+
+      document.getElementById("cache_hit_rate").textContent =
+        percent(telemetry.cache_hit_rate);
+
+      document.getElementById("cache_hits").textContent =
+        number(telemetry.cache_hits);
+
+      document.getElementById("cache_requests").textContent =
+        number(telemetry.cache_requests);
+
+      document.getElementById("load_count").textContent =
+        number(telemetry.load_count);
+
+      document.getElementById("time_to_playable_ms").textContent =
+        milliseconds(telemetry.time_to_playable_ms);
+
+      document.getElementById("p50_load_ms").textContent =
+        milliseconds(telemetry.p50_load_ms);
+
+      document.getElementById("p95_load_ms").textContent =
+        milliseconds(telemetry.p95_load_ms);
+
+      document.getElementById("accuracy_bar").style.width =
+        `${Math.max(0, Math.min(100, Number(telemetry.prefetch_accuracy || 0) * 100))}%`;
+
+      document.getElementById("cache_bar").style.width =
+        `${Math.max(0, Math.min(100, Number(telemetry.cache_hit_rate || 0) * 100))}%`;
+
+      document.getElementById("raw").textContent =
+        JSON.stringify({ requests, telemetry }, null, 2);
+
+      status.textContent =
+        `Live • ${new Date().toLocaleTimeString()}`;
+    } catch (error) {
+      status.textContent = "Disconnected";
+      document.getElementById("raw").textContent =
+        String(error);
+    }
+  }
+
+  refresh();
+  setInterval(refresh, 2000);
+</script>
+</body>
+</html>

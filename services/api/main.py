@@ -1,13 +1,23 @@
 from collections import Counter
+from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 from ml.prediction.transition_predictor import TransitionPredictor
 from services.policy.decision import make_prefetch_decision
-from services.policy.models import PolicyConfig, PolicyInputs, PrefetchAction
+from services.policy.models import (
+    PolicyConfig,
+    PolicyInputs,
+    PrefetchAction,
+    PrefetchDecision,
+)
 from services.policy.scoring import calculate_policy_score
+from services.prefetch import PrefetchExecutor
+from services.safety import ResponsiblePlayGuard
+from services.telemetry import TelemetryCollector, TelemetryEvent, TelemetryEventType
 
 app = FastAPI(
     title="PulseLoad API",
@@ -15,7 +25,12 @@ app = FastAPI(
     version="0.2.0",
 )
 
+DASHBOARD_PATH = Path(__file__).resolve().parents[2] / "dashboard" / "index.html"
+
 predictor = TransitionPredictor()
+prefetch_executor = PrefetchExecutor()
+responsible_play_guard = ResponsiblePlayGuard()
+telemetry = TelemetryCollector()
 
 _metrics: Counter[str] = Counter()
 
@@ -73,6 +88,9 @@ class ExecuteRequest(BaseModel):
     target_game_id: str
     action: PrefetchAction
     fraction: float = Field(ge=0.0, le=1.0)
+    responsible_play_allowed: bool = True
+    restricted_session: bool = False
+    safety_block: bool = False
 
 
 class ExecuteResponse(BaseModel):
@@ -81,6 +99,9 @@ class ExecuteResponse(BaseModel):
     action: PrefetchAction
     fraction: float
     status: str
+    requested_bytes: int
+    loaded_bytes: int
+    cache_state: str | None
 
 
 def _record(metric: str) -> None:
@@ -136,6 +157,19 @@ async def predict(request: PredictRequest) -> PredictResponse:
     )
 
     _record("predict_requests_total")
+
+    telemetry.record(
+        TelemetryEvent(
+            event_type=TelemetryEventType.PREDICTION,
+            game_id=request.current_game_id,
+            timestamp_ms=0.0,
+            value=float(len(sorted_probabilities)),
+            metadata={
+                "top_k": request.top_k,
+                "candidates": len(sorted_probabilities),
+            },
+        )
+    )
 
     return PredictResponse(
         current_game_id=request.current_game_id,
@@ -194,26 +228,118 @@ async def prefetch(request: PrefetchRequest) -> PrefetchResponse:
 @app.post("/prefetch/execute", response_model=ExecuteResponse)
 async def execute_prefetch(request: ExecuteRequest) -> ExecuteResponse:
     _record("prefetch_execute_requests_total")
+
+    safety_decision = responsible_play_guard.evaluate(
+        responsible_play_allowed=request.responsible_play_allowed,
+        restricted_session=request.restricted_session,
+        safety_block=request.safety_block,
+    )
+
+    if not safety_decision.allowed:
+        _record("executions_safety_blocked")
+        raise HTTPException(
+            status_code=403,
+            detail=safety_decision.reason,
+        )
+
+    decision = PrefetchDecision(
+        action=request.action,
+        score=0.0,
+        fraction=request.fraction,
+        explanation="API execution request",
+    )
+
+    try:
+        result = prefetch_executor.execute(
+            target_game_id=request.target_game_id,
+            decision=decision,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
     _record(f"executions_{request.action.value.lower()}")
 
-    if request.action is PrefetchAction.SKIP:
-        status = "skipped"
-    else:
-        status = "accepted"
+    if result.status.value == "cache_hit":
+        _record("executions_cache_hit")
+    elif result.status.value == "executed":
+        _record("executions_completed")
+
+    telemetry.record(
+        TelemetryEvent(
+            event_type=TelemetryEventType.PREFETCH,
+            game_id=request.target_game_id,
+            timestamp_ms=0.0,
+            status=result.status.value,
+            metadata={
+                "action": result.action.value,
+                "fraction": result.fraction,
+            },
+        )
+    )
+
+    if result.cache_state is not None:
+        telemetry.record(
+            TelemetryEvent(
+                event_type=TelemetryEventType.CACHE,
+                game_id=request.target_game_id,
+                timestamp_ms=0.0,
+                status=("hit" if result.status.value == "cache_hit" else "miss"),
+                metadata={
+                    "cache_state": result.cache_state.value,
+                    "loaded_bytes": result.loaded_bytes,
+                },
+            )
+        )
+
+    if result.loaded_bytes > 0:
+        telemetry.record(
+            TelemetryEvent(
+                event_type=TelemetryEventType.LOAD,
+                game_id=request.target_game_id,
+                timestamp_ms=0.0,
+                status=result.status.value,
+                metadata={
+                    "loaded_bytes": result.loaded_bytes,
+                    "playable_bytes": result.playable_bytes,
+                    "total_bytes": result.total_bytes,
+                },
+            )
+        )
+
+        if result.playable_bytes > 0:
+            telemetry.record(
+                TelemetryEvent(
+                    event_type=TelemetryEventType.PLAYABLE,
+                    game_id=request.target_game_id,
+                    timestamp_ms=0.0,
+                    metadata={
+                        "playable_bytes": result.playable_bytes,
+                    },
+                )
+            )
 
     return ExecuteResponse(
         current_game_id=request.current_game_id,
         target_game_id=request.target_game_id,
-        action=request.action,
-        fraction=request.fraction,
-        status=status,
+        action=result.action,
+        fraction=result.fraction,
+        status=result.status.value,
+        requested_bytes=result.requested_bytes,
+        loaded_bytes=result.loaded_bytes,
+        cache_state=(result.cache_state.value if result.cache_state is not None else None),
     )
+
+
+@app.get("/dashboard", include_in_schema=False)
+async def dashboard() -> FileResponse:
+    return FileResponse(DASHBOARD_PATH, media_type="text/html")
 
 
 @app.get("/metrics")
 async def metrics() -> dict[str, Any]:
     return {
         "requests": dict(_metrics),
+        "telemetry": telemetry.metrics(),
     }
 
 
